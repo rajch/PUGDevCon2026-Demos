@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paydesk-web
+  labels:
+    app: paydesk-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paydesk-web
+  template:
+    metadata:
+      labels:
+        app: paydesk-web
+    spec:
+      # PROPER KUBERNETES FIX:
+      # fsGroup tells kubelet to mount the volume with GID 1654 and group-write permissions.
+      # The app container runs as unprivileged user 1654 without needing root!
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+        - name: web
+          image: paydesk:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              value: "Host=postgres;Port=5432;Database=paydesk_db;Username=paydesk;Password=paydesk_secret_password"
+            - name: Storage__DataDirectory
+              value: "/app/data"
+          volumeMounts:
+            - name: paydesk-data
+              mountPath: /app/data
+      volumes:
+        - name: paydesk-data
+          persistentVolumeClaim:
+            claimName: paydesk-data-pvc

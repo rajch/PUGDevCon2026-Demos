@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: paydesk-postgres-s1
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: paydesk
+      POSTGRES_PASSWORD: paydesk_secret_password
+      POSTGRES_DB: paydesk_db
+    ports:
+      - "5432:5432"
+
+  paydesk-web:
+    image: paydesk:latest
+    container_name: paydesk-web-s1-insecure
+    depends_on:
+      - postgres
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=paydesk_db;Username=paydesk;Password=paydesk_secret_password"
+      Storage__DataDirectory: "/app/data"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./naive-host-data:/app/data
+    # ANTI-PATTERN: Forcing the container to run as root (UID 0) to "solve" the permission error!
+    user: "0:0"
