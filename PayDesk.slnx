@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PayDesk.Consolidator/PayDesk.Consolidator.csproj" />
+    <Project Path="src/PayDesk.Core/PayDesk.Core.csproj" />
+    <Project Path="src/PayDesk.Web/PayDesk.Web.csproj" />
+  </Folder>
+</Solution>
