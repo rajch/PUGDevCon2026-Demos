@@ -9,12 +9,18 @@ services:
       POSTGRES_DB: paydesk_db
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paydesk -d paydesk_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
 
   paydesk-web:
     image: paydesk:latest
     container_name: paydesk-web-s2-privileged
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=paydesk_db;Username=paydesk;Password=paydesk_secret_password"
       Storage__DataDirectory: "/app/data"

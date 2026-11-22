@@ -107,3 +107,4 @@ An application health probe should check TCP connectivity or an HTTP `/healthz` 
 ```bash
 docker compose -f demo/02-linux-capabilities/docker-compose.proper-cap-add.yml down
 ```
+

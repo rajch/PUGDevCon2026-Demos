@@ -23,3 +23,4 @@ profile paydesk-restricted flags=(attach_disconnected,mediate_deleted) {
   # SECURITY BOUNDARY: Deny direct execution of child binaries in /app/consolidator
   deny /app/consolidator/** x,
 }
+

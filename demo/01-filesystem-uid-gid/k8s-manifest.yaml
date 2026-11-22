@@ -40,3 +40,4 @@ spec:
         - name: paydesk-data
           persistentVolumeClaim:
             claimName: paydesk-data-pvc
+

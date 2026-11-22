@@ -97,3 +97,4 @@ Review the complete Kubernetes manifest in [k8s-manifest.yaml](file:///home/rajc
 ```bash
 docker compose -f demo/01-filesystem-uid-gid/docker-compose.proper-fix.yml down
 ```
+

@@ -64,3 +64,4 @@ In [k8s-manifest.yaml](file:///home/rajch/projects/rajch/PUGDevCon2026-Demos/dem
 ```bash
 docker compose -f demo/03-process-seccomp-apparmor/docker-compose.seccomp-apparmor.yml down
 ```
+

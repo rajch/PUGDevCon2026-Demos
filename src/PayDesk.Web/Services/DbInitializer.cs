@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using PayDesk.Core.Data;
 using PayDesk.Core.Models;
 
@@ -12,9 +13,36 @@ public static class DbInitializer
         var context = scope.ServiceProvider.GetRequiredService<PayDeskDbContext>();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DbInitializer");
 
-        // Ensure database tables are created
-        await context.Database.EnsureCreatedAsync();
+        // Wait and retry for database availability on startup (e.g. while postgres container initializes)
+        const int maxRetries = 15;
+        for (int retry = 1; retry <= maxRetries; retry++)
+        {
+            try
+            {
+                logger.LogInformation("Connecting to database (attempt {Attempt}/{MaxRetries})...", retry, maxRetries);
+                if (await context.Database.CanConnectAsync())
+                {
+                    logger.LogInformation("Database reachable. Ensuring schema is created...");
+                    await context.Database.EnsureCreatedAsync();
+                    break;
+                }
+            }
+            catch (Exception ex) when (retry < maxRetries)
+            {
+                logger.LogWarning("Database not ready yet ({Message}). Waiting 2s before retry...", ex.Message);
+            }
+
+            if (retry == maxRetries)
+            {
+                // Final attempt
+                await context.Database.EnsureCreatedAsync();
+                break;
+            }
+
+            await Task.Delay(2000);
+        }
 
         // Seed Roles
         string[] roles = ["Admin", "User"];
@@ -73,4 +101,3 @@ public static class DbInitializer
         }
     }
 }
-
