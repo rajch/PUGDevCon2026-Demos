@@ -49,3 +49,4 @@ public class PayDeskDbContext : IdentityDbContext<ApplicationUser>
         });
     }
 }
+

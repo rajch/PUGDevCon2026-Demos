@@ -12,3 +12,4 @@ public class MonthlyConsolidation
     public required string PayslipFilePath { get; set; }
     public DateTime ConsolidatedAt { get; set; } = DateTime.UtcNow;
 }
+

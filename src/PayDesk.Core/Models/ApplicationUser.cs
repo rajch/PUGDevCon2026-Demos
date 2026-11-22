@@ -10,3 +10,4 @@ public class ApplicationUser : IdentityUser
     public ICollection<ExpenseFile> ExpenseFiles { get; set; } = new List<ExpenseFile>();
     public ICollection<MonthlyConsolidation> MonthlyConsolidations { get; set; } = new List<MonthlyConsolidation>();
 }
+

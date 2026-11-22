@@ -42,3 +42,4 @@ public class DownloadPayslipModel : PageModel
         return PhysicalFile(payslip.PayslipFilePath, "application/pdf", downloadName);
     }
 }
+

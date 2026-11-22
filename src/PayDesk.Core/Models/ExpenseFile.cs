@@ -22,3 +22,4 @@ public class ExpenseFile
 
     public ICollection<ExpenseItem> Items { get; set; } = new List<ExpenseItem>();
 }
+

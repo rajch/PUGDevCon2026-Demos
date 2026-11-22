@@ -124,3 +124,4 @@ public class UsersModel : PageModel
         return RedirectToPage("/Admin/Users");
     }
 }
+
