@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paydesk-web
+  labels:
+    app: paydesk-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paydesk-web
+  template:
+    metadata:
+      labels:
+        app: paydesk-web
+    spec:
+      containers:
+        - name: web
+          image: paydesk:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              value: "Host=postgres;Port=5432;Database=paydesk_db;Username=paydesk;Password=paydesk_secret_password"
+          # PROPER KUBERNETES FIX:
+          # Drop ALL capabilities by default, grant only the exact capability needed (NET_RAW)
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1654
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_RAW
