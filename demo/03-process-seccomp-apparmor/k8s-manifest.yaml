@@ -1,0 +1,93 @@
+# ==============================================================================
+# Kubernetes Scenario 3: Process Execution Boundaries & Batch Job Decoupling
+# ==============================================================================
+
+# 1. Web Application Deployment (Hardened: RuntimeDefault Seccomp, No Execution Risks)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paydesk-web
+  labels:
+    app: paydesk-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paydesk-web
+  template:
+    metadata:
+      labels:
+        app: paydesk-web
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault   # Default Kubernetes Seccomp profile
+      containers:
+        - name: web
+          image: paydesk:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true  # Prevents binary modification on rootfs
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              value: "Host=postgres;Port=5432;Database=paydesk_db;Username=paydesk;Password=paydesk_secret_password"
+            - name: Storage__DataDirectory
+              value: "/app/data"
+          volumeMounts:
+            - name: paydesk-data
+              mountPath: /app/data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: paydesk-data
+          persistentVolumeClaim:
+            claimName: paydesk-data-pvc
+        - name: tmp
+          emptyDir: {}
+
+---
+# 2. THE PROPER ARCHITECTURAL SOLUTION:
+# Instead of having the web process invoke Process.Start inside the web container,
+# batch consolidation runs as an isolated Kubernetes Job!
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: paydesk-consolidation-2026-11
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        fsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: consolidator
+          image: paydesk:latest
+          imagePullPolicy: IfNotPresent
+          # Direct invocation of the standalone console binary:
+          command: ["dotnet", "/app/consolidator/PayDesk.Consolidator.dll"]
+          args: ["--month", "2026-11", "--data-dir", "/app/data"]
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              value: "Host=postgres;Port=5432;Database=paydesk_db;Username=paydesk;Password=paydesk_secret_password"
+          volumeMounts:
+            - name: paydesk-data
+              mountPath: /app/data
+      volumes:
+        - name: paydesk-data
+          persistentVolumeClaim:
+            claimName: paydesk-data-pvc

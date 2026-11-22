@@ -1,0 +1,25 @@
+# AppArmor profile for PayDesk Web container
+# Denies the web process from executing the child consolidator binary directly
+
+#include <tunables/global>
+
+profile paydesk-restricted flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  # Allow .NET runtime execution
+  /usr/share/dotnet/** rix,
+  /usr/bin/** rix,
+  /bin/** rix,
+
+  # Allow web application files
+  /app/web/** rix,
+  /app/data/** rw,
+  /tmp/** rwk,
+  /proc/** r,
+  /sys/** r,
+  /dev/** rw,
+
+  # SECURITY BOUNDARY: Deny direct execution of child binaries in /app/consolidator
+  deny /app/consolidator/** x,
+}
