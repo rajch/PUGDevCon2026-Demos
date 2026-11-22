@@ -1,0 +1,178 @@
+@page
+@model PayDesk.Web.Pages.Admin.ConsolidationModel
+@{
+    ViewData["Title"] = "Consolidation Management";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-gear-wide-connected"></i> Monthly Consolidation Management</h2>
+        <p class="text-muted mb-0">Admin controls for triggering standalone batch consolidation and PDF generation</p>
+    </div>
+    <span class="badge bg-warning text-dark px-3 py-2 fs-6"><i class="bi bi-shield-lock-fill"></i> Admin Authorization</span>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @Model.SuccessMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ConsolidationLogs))
+{
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header @(Model.ConsolidationSuccess == true ? "bg-success text-white" : "bg-danger text-white") py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-bold"><i class="bi bi-terminal"></i> Subprocess Execution Log</span>
+            <span class="badge bg-white text-dark">Exit: @(Model.ConsolidationSuccess == true ? "Success (0)" : "Failed")</span>
+        </div>
+        <div class="card-body bg-dark text-light p-3">
+            <pre class="mb-0 font-monospace small" style="white-space: pre-wrap; max-height: 250px; overflow-y: auto;">@Model.ConsolidationLogs</pre>
+        </div>
+    </div>
+}
+
+<div class="row g-4 mb-4">
+    <!-- Pending Months for Consolidation -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header card-header-paydesk py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-hourglass-top"></i> Pending Months Ready to Consolidate</h5>
+                <span class="badge bg-primary">@Model.PendingSummaries.Count Month(s)</span>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.PendingSummaries.Count == 0)
+                {
+                    <div class="p-4 text-center text-muted">
+                        <i class="bi bi-check2-circle fs-1 d-block mb-2 text-success"></i>
+                        <p class="mb-0">No pending expenses found. All submitted files have been consolidated!</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Employees</th>
+                                    <th>Files</th>
+                                    <th>Total Amount</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var summary in Model.PendingSummaries)
+                                {
+                                    <tr>
+                                        <td><span class="badge bg-primary fs-6">@summary.Month</span></td>
+                                        <td>@summary.UserCount</td>
+                                        <td>@summary.FileCount</td>
+                                        <td class="fw-bold text-success">$@summary.TotalAmount.ToString("N2")</td>
+                                        <td class="text-end">
+                                            <form method="post" asp-page-handler="Consolidate" asp-route-month="@summary.Month" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-paydesk" onclick="return confirm('Run consolidation for @summary.Month? Once executed, no further expenses can be submitted for this month.');">
+                                                    <i class="bi bi-play-circle"></i> Consolidate
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+            <div class="card-footer bg-light small text-muted">
+                <i class="bi bi-info-circle"></i> Triggering consolidation launches the standalone <code>PayDesk.Consolidator</code> executable asynchronously, generating PDF payslips and marking files as processed.
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Month Trigger -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header card-header-paydesk py-3">
+                <h5 class="mb-0"><i class="bi bi-terminal-plus"></i> Manual Consolidation Trigger</h5>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted small">
+                    You can trigger the consolidation executable for any month directly by specifying the month in <code>YYYY-MM</code> format below:
+                </p>
+                <form method="post" asp-page-handler="Consolidate">
+                    <div class="mb-3">
+                        <label for="manualMonth" class="form-label fw-semibold">Target Month (YYYY-MM)</label>
+                        <input type="month" id="manualMonth" name="month" class="form-control" value="@DateTime.UtcNow.ToString("yyyy-MM")" required />
+                    </div>
+                    <button type="submit" class="btn btn-warning text-dark fw-semibold w-100 py-2">
+                        <i class="bi bi-gear-fill"></i> Execute Consolidator Binary
+                    </button>
+                </form>
+
+                <div class="mt-4 p-3 bg-light rounded border small">
+                    <strong class="text-secondary d-block mb-1"><i class="bi bi-shield-check"></i> Specification Rule:</strong>
+                    Once a month's consolidation process runs, that month is locked and no further expenses can be submitted for it.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Completed Consolidations List -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header card-header-paydesk py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-archive"></i> Consolidated Payslips History</h5>
+        <span class="badge bg-secondary">@Model.CompletedConsolidations.Count Total</span>
+    </div>
+    <div class="card-body p-0">
+        @if (Model.CompletedConsolidations.Count == 0)
+        {
+            <div class="p-4 text-center text-muted">
+                <p class="mb-0">No consolidations completed yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Month</th>
+                            <th>Employee</th>
+                            <th>Email</th>
+                            <th>Total Payout</th>
+                            <th>Consolidated Timestamp</th>
+                            <th class="text-end">Payslip</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Model.CompletedConsolidations)
+                        {
+                            <tr>
+                                <td><span class="badge bg-secondary">@c.Month</span></td>
+                                <td>@(c.User?.FullName ?? c.User?.UserName ?? "N/A")</td>
+                                <td><code>@(c.User?.Email ?? "N/A")</code></td>
+                                <td class="fw-bold text-success">$@c.TotalPayout.ToString("N2")</td>
+                                <td><small class="text-muted">@c.ConsolidatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</small></td>
+                                <td class="text-end">
+                                    <a asp-page="/DownloadPayslip" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-download"></i> PDF
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

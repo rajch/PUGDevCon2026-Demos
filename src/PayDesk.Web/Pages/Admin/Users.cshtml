@@ -1,0 +1,127 @@
+@page
+@model PayDesk.Web.Pages.Admin.UsersModel
+@{
+    ViewData["Title"] = "User Management";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-people"></i> User Management</h2>
+        <p class="text-muted mb-0">Create and manage employee and administrator accounts</p>
+    </div>
+    <span class="badge bg-warning text-dark px-3 py-2 fs-6"><i class="bi bi-shield-lock-fill"></i> Admin Authorization</span>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @Model.SuccessMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-4 mb-4">
+    <!-- Create User Form -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header card-header-paydesk py-3">
+                <h5 class="mb-0"><i class="bi bi-person-plus"></i> Create New User</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" asp-page-handler="CreateUser">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.FullName" class="form-label fw-semibold">Full Name</label>
+                        <input asp-for="Input.FullName" class="form-control" placeholder="e.g. Jane Doe" />
+                        <span asp-validation-for="Input.FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.Email" class="form-label fw-semibold">Email Address</label>
+                        <input asp-for="Input.Email" class="form-control" placeholder="jane@paydesk.local" />
+                        <span asp-validation-for="Input.Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.Password" class="form-label fw-semibold">Password</label>
+                        <input asp-for="Input.Password" class="form-control" placeholder="Minimum 6 characters" />
+                        <span asp-validation-for="Input.Password" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.Role" class="form-label fw-semibold">Assigned Role</label>
+                        <select asp-for="Input.Role" class="form-select">
+                            <option value="User">User (Standard Employee)</option>
+                            <option value="Admin">Admin (Administrator)</option>
+                        </select>
+                        <span asp-validation-for="Input.Role" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-paydesk w-100 py-2 fw-semibold">
+                        <i class="bi bi-check2-circle"></i> Create User
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users List Table -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header card-header-paydesk py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-person-badge"></i> Existing Accounts</h5>
+                <span class="badge bg-primary">@Model.UsersList.Count Users</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in Model.UsersList)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@(user.FullName ?? "N/A")</td>
+                                    <td><code>@user.Email</code></td>
+                                    <td>
+                                        @foreach (var role in user.Roles)
+                                        {
+                                            @if (role == "Admin")
+                                            {
+                                                <span class="badge bg-warning text-dark"><i class="bi bi-shield-lock"></i> Admin</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary"><i class="bi bi-person"></i> User</span>
+                                            }
+                                        }
+                                    </td>
+                                    <td><small class="text-muted">@user.CreatedAt.ToString("MMM dd, yyyy")</small></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

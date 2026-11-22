@@ -1,0 +1,173 @@
+@page
+@model PayDesk.Web.Pages.StatusModel
+@{
+    ViewData["Title"] = "System Status";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-activity"></i> Application Status</h2>
+        <p class="text-muted mb-0">Live backend diagnostics and network reachability check</p>
+    </div>
+    <div>
+        <a asp-page="/Status" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-clockwise"></i> Refresh Status</a>
+    </div>
+</div>
+
+<!-- Overall Banner -->
+@if (Model.OverallHealthy)
+{
+    <div class="alert alert-success d-flex align-items-center p-3 mb-4 shadow-sm border-success">
+        <i class="bi bi-check-circle-fill fs-2 me-3 text-success"></i>
+        <div>
+            <h5 class="alert-heading fw-bold mb-1">All Systems Operational</h5>
+            <p class="mb-0">The database server responded to ICMP Ping, and PostgreSQL connection queries completed normally.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-danger d-flex align-items-center p-3 mb-4 shadow-sm border-danger">
+        <i class="bi bi-exclamation-octagon-fill fs-2 me-3 text-danger"></i>
+        <div>
+            <h5 class="alert-heading fw-bold mb-1">System Health Degraded / Checks Failed</h5>
+            <p class="mb-0">One or more infrastructure health checks failed. See detailed diagnostics below.</p>
+        </div>
+    </div>
+}
+
+<div class="row g-4 mb-4">
+    <!-- ICMP Ping Diagnostic Card -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center @(Model.IcmpPingSuccess ? "bg-success-subtle text-success-emphasis" : "bg-danger-subtle text-danger-emphasis")">
+                <span class="fw-bold fs-5"><i class="bi bi-broadcast"></i> Database Host ICMP Ping</span>
+                @if (Model.IcmpPingSuccess)
+                {
+                    <span class="badge bg-success fs-6"><i class="bi bi-check2"></i> Ping OK</span>
+                }
+                else
+                {
+                    <span class="badge bg-danger fs-6"><i class="bi bi-x-lg"></i> Ping Failed</span>
+                }
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless mb-3">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted" style="width: 140px;">Target Host:</td>
+                            <td><code>@Model.TargetHost</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Resolved IP:</td>
+                            <td><code>@Model.ResolvedIp</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Roundtrip Latency:</td>
+                            <td>@(Model.IcmpPingSuccess ? $"{Model.IcmpRoundtripTimeMs} ms" : "N/A")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Status:</td>
+                            <td class="@(Model.IcmpPingSuccess ? "text-success fw-semibold" : "text-danger fw-semibold")">
+                                @Model.IcmpStatusMessage
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                @if (!string.IsNullOrEmpty(Model.IcmpExceptionDetails))
+                {
+                    <div class="p-3 bg-danger-subtle text-danger rounded border border-danger-subtle small mb-3">
+                        <strong><i class="bi bi-bug"></i> Exception Details:</strong>
+                        <div class="mt-1 font-monospace">@Model.IcmpExceptionDetails</div>
+                    </div>
+                }
+
+                @if (Model.IsPermissionError)
+                {
+                    <div class="alert alert-warning small mb-0">
+                        <i class="bi bi-shield-exclamation me-1"></i>
+                        <strong>Linux Security Alert (CAP_NET_RAW):</strong> This failure indicates an raw socket access violation. On Linux container environments, ICMP ping requires the <code>CAP_NET_RAW</code> capability. If running in a hardened container without this capability, ping operations are blocked by the kernel.
+                    </div>
+                }
+            </div>
+            <div class="card-footer bg-light text-muted small">
+                Method: <code>System.Net.NetworkInformation.Ping.SendPingAsync()</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- PostgreSQL Connection Card -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center @(Model.DatabaseConnected ? "bg-success-subtle text-success-emphasis" : "bg-danger-subtle text-danger-emphasis")">
+                <span class="fw-bold fs-5"><i class="bi bi-database-check"></i> PostgreSQL Connection</span>
+                @if (Model.DatabaseConnected)
+                {
+                    <span class="badge bg-success fs-6"><i class="bi bi-check2"></i> Connected</span>
+                }
+                else
+                {
+                    <span class="badge bg-danger fs-6"><i class="bi bi-x-lg"></i> Disconnected</span>
+                }
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless mb-3">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted" style="width: 140px;">Database Status:</td>
+                            <td>
+                                @if (Model.DatabaseConnected)
+                                {
+                                    <span class="text-success fw-semibold"><i class="bi bi-check-circle"></i> Connection Established</span>
+                                }
+                                else
+                                {
+                                    <span class="text-danger fw-semibold"><i class="bi bi-x-circle"></i> Failed to Connect</span>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Query Latency:</td>
+                            <td>@(Model.DatabaseConnected ? $"{Model.DatabaseLatencyMs} ms" : "N/A")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Server Version:</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(Model.DatabaseVersion))
+                                {
+                                    <small class="font-monospace">@Model.DatabaseVersion</small>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">N/A</span>
+                                }
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                @if (!string.IsNullOrEmpty(Model.DatabaseErrorMessage))
+                {
+                    <div class="p-3 bg-danger-subtle text-danger rounded border border-danger-subtle small mb-0">
+                        <strong><i class="bi bi-bug"></i> Error Message:</strong>
+                        <div class="mt-1 font-monospace">@Model.DatabaseErrorMessage</div>
+                    </div>
+                }
+            </div>
+            <div class="card-footer bg-light text-muted small">
+                Provider: <code>Npgsql.EntityFrameworkCore.PostgreSQL</code>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 bg-white">
+    <div class="card-body p-4">
+        <h5 class="fw-bold text-secondary mb-2"><i class="bi bi-info-circle"></i> Security Demonstration Context</h5>
+        <p class="text-muted mb-0">
+            This status page evaluates both application-layer connectivity (PostgreSQL TCP protocol on port 5432) and OS-level raw socket operations (ICMP echo).
+            In orchestrated container platforms (Kubernetes / Docker), security profiles typically strip <code>CAP_NET_RAW</code>, which causes ICMP ping to fail with <em>Operation not permitted</em> even when the TCP database connection succeeds.
+        </p>
+    </div>
+</div>

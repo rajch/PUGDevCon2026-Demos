@@ -1,0 +1,212 @@
+﻿@page
+@model PayDesk.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+@if (User.Identity?.IsAuthenticated != true)
+{
+    <div class="p-5 mb-4 bg-white rounded-3 shadow-sm border">
+        <div class="container-fluid py-3">
+            <h1 class="display-5 fw-bold text-primary"><i class="bi bi-wallet2"></i> Welcome to PayDesk</h1>
+            <p class="col-md-9 fs-5 text-muted">
+                PayDesk is an enterprise expense submission and reimbursement system.
+                Submit monthly expense reports, track pending approvals, and download consolidated payslips.
+            </p>
+            <div class="mt-4 d-flex gap-3">
+                <a class="btn btn-paydesk btn-lg px-4" asp-page="/Account/Login"><i class="bi bi-box-arrow-in-right"></i> Sign In to Your Account</a>
+                <a class="btn btn-outline-secondary btn-lg px-4" asp-page="/Status"><i class="bi bi-activity"></i> System Health Status</a>
+            </div>
+
+            <hr class="my-4" />
+            <div class="alert alert-info d-flex align-items-center mb-0">
+                <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+                <div>
+                    <strong>Demo Notice:</strong> Default admin credentials are <code>admin@paydesk.local</code> / <code>Admin@123!</code> and standard employee credentials are <code>alice@paydesk.local</code> / <code>User@123!</code>.
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="bi bi-speedometer2"></i> Employee Dashboard</h2>
+            <p class="text-muted mb-0">Welcome back, <strong>@(User.Identity.Name)</strong></p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-page="/Status" class="btn btn-outline-secondary btn-sm"><i class="bi bi-activity"></i> Check Status</a>
+            @if (User.IsInRole("Admin"))
+            {
+                <a asp-page="/Admin/Consolidation" class="btn btn-outline-warning text-dark btn-sm"><i class="bi bi-gear-wide-connected"></i> Admin Consolidation</a>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @Model.SuccessMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row g-4 mb-4">
+        <!-- Upload Form -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header card-header-paydesk py-3">
+                    <h5 class="mb-0"><i class="bi bi-cloud-arrow-up"></i> Upload Expense Report</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" asp-page-handler="Upload" enctype="multipart/form-data">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="TargetMonth" class="form-label fw-semibold">Expense Month (YYYY-MM)</label>
+                            <input asp-for="TargetMonth" class="form-control" type="month" />
+                            <span asp-validation-for="TargetMonth" class="text-danger small"></span>
+                            <div class="form-text">Select the month for which expenses are being submitted.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="UploadFile" class="form-label fw-semibold">CSV Expense File</label>
+                            <input asp-for="UploadFile" class="form-control" type="file" accept=".csv" />
+                            <span asp-validation-for="UploadFile" class="text-danger small"></span>
+                            <div class="form-text">Format: <code>&lt;YYYY-MM-DD Date&gt;,&lt;Description&gt;,&lt;Amount&gt;</code></div>
+                        </div>
+
+                        <div class="p-3 bg-light rounded border mb-3 small">
+                            <strong class="d-block mb-1 text-secondary"><i class="bi bi-file-earmark-spreadsheet"></i> Sample CSV Format:</strong>
+                            <code>
+                                2026-11-04,Travel to Client Office,35.00<br />
+                                2026-11-12,Team Lunch Discussion,74.50<br />
+                                2026-11-18,Conference Registration,250.00
+                            </code>
+                        </div>
+
+                        <button type="submit" class="btn btn-paydesk w-100 py-2 fw-semibold">
+                            <i class="bi bi-upload"></i> Upload & Submit Report
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Submissions -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header card-header-paydesk py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-hourglass-split"></i> Pending Expense Submissions</h5>
+                    <span class="badge bg-primary">@Model.PendingFiles.Count Pending</span>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.PendingFiles.Count == 0)
+                    {
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                            <p class="mb-0">No pending expense submissions for your account.</p>
+                            <small>Upload a new CSV report on the left to get started.</small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Month</th>
+                                        <th>File Name</th>
+                                        <th>Items</th>
+                                        <th>Total</th>
+                                        <th>Uploaded</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var file in Model.PendingFiles)
+                                    {
+                                        <tr>
+                                            <td><span class="badge bg-secondary">@file.Month</span></td>
+                                            <td class="text-break"><i class="bi bi-file-earmark-text me-1 text-primary"></i> @file.FileName</td>
+                                            <td>@file.Items.Count</td>
+                                            <td class="fw-bold text-success">$@file.TotalAmount.ToString("N2")</td>
+                                            <td><small class="text-muted">@file.UploadedAt.ToString("MMM dd, yyyy")</small></td>
+                                            <td><span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="card-footer bg-light small text-muted">
+                    <i class="bi bi-info-circle"></i> Pending files will be processed and removed from this list when an administrator runs monthly consolidation.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payslips Download Section -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header card-header-paydesk py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-file-earmark-pdf"></i> Available Monthly Payslips</h5>
+            <span class="badge bg-success">@Model.AvailablePayslips.Count Generated</span>
+        </div>
+        <div class="card-body p-0">
+            @if (Model.AvailablePayslips.Count == 0)
+            {
+                <div class="p-4 text-center text-muted">
+                    <i class="bi bi-file-earmark-x fs-1 d-block mb-2 text-secondary"></i>
+                    <p class="mb-0">No payslips have been generated yet for your account.</p>
+                    <small>Once your pending expenses are consolidated by an administrator, your monthly PDF payslip will appear here.</small>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Month</th>
+                                <th>Total Expenses</th>
+                                <th>Total Payout</th>
+                                <th>Consolidated Date</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var payslip in Model.AvailablePayslips)
+                            {
+                                <tr>
+                                    <td><span class="badge bg-primary fs-6">@payslip.Month</span></td>
+                                    <td>$@payslip.TotalExpenses.ToString("N2")</td>
+                                    <td class="fw-bold text-success fs-6">$@payslip.TotalPayout.ToString("N2")</td>
+                                    <td>@payslip.ConsolidatedAt.ToString("yyyy-MM-dd HH:mm UTC")</td>
+                                    <td class="text-end">
+                                        <a asp-page="/DownloadPayslip" asp-route-id="@payslip.Id" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-download"></i> Download PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
