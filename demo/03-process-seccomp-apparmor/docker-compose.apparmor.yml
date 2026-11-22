@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: paydesk-postgres-s3
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: paydesk
+      POSTGRES_PASSWORD: paydesk_secret_password
+      POSTGRES_DB: paydesk_db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paydesk -d paydesk_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  paydesk-web:
+    image: paydesk:latest
+    container_name: paydesk-web-s3-apparmor
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=paydesk_db;Username=paydesk;Password=paydesk_secret_password"
+      Storage__DataDirectory: "/app/data"
+    ports:
+      - "8080:8080"
+    # Same idea, different mechanism: AppArmor denies exec of anything under
+    # /app/consolidator. Load the profile on the host first (see apparmor-profile.txt):
+    #   sudo apparmor_parser -r -W demo/03-process-seccomp-apparmor/apparmor-profile.txt
+    security_opt:
+      - no-new-privileges:true
+      - apparmor=paydesk-restricted

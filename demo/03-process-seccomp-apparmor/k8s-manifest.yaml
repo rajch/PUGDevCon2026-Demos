@@ -26,6 +26,10 @@ spec:
         fsGroup: 1654
         seccompProfile:
           type: RuntimeDefault   # Default Kubernetes Seccomp profile
+          # To use the demo's custom "no new processes" profile instead, copy seccomp-profile.json to
+          # /var/lib/kubelet/seccomp/profiles/paydesk-noproc.json on every node, then:
+          #   type: Localhost
+          #   localhostProfile: profiles/paydesk-noproc.json
       containers:
         - name: web
           image: paydesk:latest
@@ -35,6 +39,10 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true  # Prevents binary modification on rootfs
+            # AppArmor (Kubernetes >= 1.30; profile must be loaded on the node first):
+            # appArmorProfile:
+            #   type: Localhost
+            #   localhostProfile: paydesk-restricted
             capabilities:
               drop:
                 - ALL

@@ -1,26 +1,57 @@
-# AppArmor profile for PayDesk Web container
-# Denies the web process from executing the child consolidator binary directly
+# AppArmor profile "paydesk-restricted" for the PayDesk web container (demo 3).
+#
+# This is Docker's built-in "docker-default" profile (rendered from the moby
+# template, minus a few obsolete-socket-family denies), so everything the web
+# app normally does keeps working. The ONLY addition is the rule at the bottom.
+#
+# Load it on the Docker host (AppArmor must be enabled: Ubuntu/Debian/SUSE,
+# NOT Docker Desktop on macOS/Windows):
+#   sudo apparmor_parser -r -W demo/03-process-seccomp-apparmor/apparmor-profile.txt
+# Verify:
+#   sudo aa-status | grep paydesk-restricted
+#   docker exec paydesk-web-s3-apparmor cat /proc/1/attr/current
+#   # -> paydesk-restricted (enforce)
+
+abi <abi/3.0>,
 
 #include <tunables/global>
 
 profile paydesk-restricted flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
-  #include <abstractions/nameservice>
 
-  # Allow .NET runtime execution
-  /usr/share/dotnet/** rix,
-  /usr/bin/** rix,
-  /bin/** rix,
+  network,
+  capability,
+  file,
+  umount,
 
-  # Allow web application files
-  /app/web/** rix,
-  /app/data/** rw,
-  /tmp/** rwk,
-  /proc/** r,
-  /sys/** r,
-  /dev/** rw,
+  deny @{PROC}/* w,
+  deny @{PROC}/{[^1-9/],[^1-9/][^0-9/],[^1-9s/][^0-9y/][^0-9s/],[^1-9/][^0-9/][^0-9/][^0-9/]*}/** w,
+  deny @{PROC}/sys/[^k]** w,
+  deny @{PROC}/sys/kernel/{?,??,[^s][^h][^m]**} w,
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/kcore rwklx,
 
-  # SECURITY BOUNDARY: Deny direct execution of child binaries in /app/consolidator
+  deny mount,
+
+  deny /sys/[^f]*/** wklx,
+  deny /sys/f[^s]*/** wklx,
+  deny /sys/fs/[^c]*/** wklx,
+  deny /sys/fs/c[^g]*/** wklx,
+  deny /sys/fs/cg[^r]*/** wklx,
+  deny /sys/firmware/** rwklx,
+  deny /sys/devices/virtual/powercap/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+
+  signal (receive) peer=unconfined,
+  signal (receive) peer=runc,
+  signal (receive) peer=crun,
+  signal (send,receive) peer=paydesk-restricted,
+  ptrace (trace,tracedby,read,readby) peer=paydesk-restricted,
+
+  # ---------------------------------------------------------------------------
+  # THE ONE ADDED RULE: the web process may not execute anything under
+  # /app/consolidator. A deny rule beats the broad "file," allow above.
+  # exec of that path now fails with EACCES ("Permission denied").
+  # ---------------------------------------------------------------------------
   deny /app/consolidator/** x,
 }
-

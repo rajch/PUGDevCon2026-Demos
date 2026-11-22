@@ -17,7 +17,7 @@ services:
 
   paydesk-web:
     image: paydesk:latest
-    container_name: paydesk-web-s3-runtime
+    container_name: paydesk-web-s3-seccomp
     depends_on:
       postgres:
         condition: service_healthy
@@ -26,9 +26,9 @@ services:
       Storage__DataDirectory: "/app/data"
     ports:
       - "8080:8080"
-    # Process and security options:
-    # 1. no-new-privileges: Prevents child processes from acquiring additional privileges (setuid)
-    # 2. Applies seccomp profile filtering
+    # A security team mandates a custom seccomp profile. This one is Docker's default
+    # profile with ONE change: no new processes (fork/vfork removed; clone only for
+    # threads). Threads, sockets and file I/O are untouched; Process.Start is not.
     security_opt:
       - no-new-privileges:true
       - seccomp:./seccomp-profile.json
