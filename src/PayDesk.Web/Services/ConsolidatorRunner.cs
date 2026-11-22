@@ -19,23 +19,43 @@ public class ConsolidatorRunner
         string? configuredPath = _configuration["Consolidator:ExecutablePath"] 
             ?? Environment.GetEnvironmentVariable("PAYDESK_CONSOLIDATOR_PATH");
 
-        string executablePath;
-        if (!string.IsNullOrEmpty(configuredPath) && Path.IsPathRooted(configuredPath))
+        string? foundPath = null;
+        var candidatePaths = new List<string>();
+
+        if (!string.IsNullOrEmpty(configuredPath))
         {
-            executablePath = configuredPath;
-        }
-        else
-        {
-            string basePath = AppContext.BaseDirectory;
-            string relativePath = configuredPath ?? "../PayDesk.Consolidator/bin/Debug/net10.0/PayDesk.Consolidator";
-            executablePath = Path.GetFullPath(Path.Combine(basePath, relativePath));
+            if (Path.IsPathRooted(configuredPath))
+            {
+                candidatePaths.Add(configuredPath);
+            }
+            else
+            {
+                candidatePaths.Add(Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), configuredPath)));
+                candidatePaths.Add(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configuredPath)));
+            }
         }
 
-        // In case running on Linux with no extension or on Windows with .exe
-        if (!File.Exists(executablePath) && File.Exists(executablePath + ".dll"))
+        // Standard default locations
+        candidatePaths.Add(Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../PayDesk.Consolidator/bin/Debug/net10.0/PayDesk.Consolidator")));
+        candidatePaths.Add(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../PayDesk.Consolidator/bin/Debug/net10.0/PayDesk.Consolidator")));
+        candidatePaths.Add(Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "src/PayDesk.Consolidator/bin/Debug/net10.0/PayDesk.Consolidator")));
+        candidatePaths.Add("/app/consolidator/PayDesk.Consolidator");
+
+        foreach (var path in candidatePaths)
         {
-            executablePath = executablePath + ".dll";
+            if (File.Exists(path))
+            {
+                foundPath = path;
+                break;
+            }
+            if (File.Exists(path + ".dll"))
+            {
+                foundPath = path + ".dll";
+                break;
+            }
         }
+
+        string executablePath = foundPath ?? candidatePaths.First();
 
         string connectionString = _configuration.GetConnectionString("DefaultConnection") 
             ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
