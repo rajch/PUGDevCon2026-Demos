@@ -20,11 +20,18 @@ RUN dotnet publish src/PayDesk.Consolidator/PayDesk.Consolidator.csproj -c Relea
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+# USER root
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core && \
+    apt-get install -y --no-install-recommends iputils-ping && \
+    rm -rf /var/lib/apt/lists/*
+# USER ${APP_UID}
+
 COPY --from=build /app/web ./web
 COPY --from=build /app/consolidator ./consolidator
 
 # Setup runtime directories
-RUN mkdir -p /app/data && chown -R app:app /app
+RUN mkdir -p /app/data && chown -R ${APP_UID}:${APP_UID} /app
 
 ENV ASPNETCORE_URLS="http://+:8080"
 ENV Storage__DataDirectory="/app/data"
