@@ -1,0 +1,148 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paydesk-db-pvc
+  labels:
+    app: paydesk
+    demo: demo1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paydesk-web-pvc
+  labels:
+    app: paydesk
+    demo: demo1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paydesk-db
+  labels:
+    app: paydesk
+    demo: demo1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paydesk
+      demo: demo1
+      layer: paydesk-db
+  template:
+    metadata:
+      labels:
+        app: paydesk
+        demo: demo1
+        layer: paydesk-db
+    spec:
+      volumes:
+        - name: paydesk-dbvol
+          persistentVolumeClaim:
+            claimName: paydesk-db-pvc
+      containers:
+        - name: paydesk-db
+          image: docker.io/library/postgres:16-alpine
+          volumeMounts:
+            - name: paydesk-dbvol
+              mountPath: /var/lib/postgresql/data
+          env:
+            - name: POSTGRES_USER
+              value: paydesk
+            - name: POSTGRES_PASSWORD
+              value: paydesk_secret_password
+            - name: POSTGRES_DB
+              value: paydesk_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app: paydesk
+    demo: demo1
+spec:
+  type: ClusterIP
+  selector:
+    app: paydesk
+    demo: demo1
+    layer: paydesk-db
+  ports:
+    - name: postgres
+      port: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paydesk-web
+  labels:
+    app: paydesk
+    demo: demo1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paydesk
+      demo: demo1
+      layer: paydesk-web
+  template:
+    metadata:
+      labels:
+        app: paydesk
+        demo: demo1
+        layer: paydesk-web
+    spec:
+      volumes:
+        - name: paydesk-webvol
+          persistentVolumeClaim:
+            claimName: paydesk-web-pvc
+      containers:
+        - name: paydesk-web
+          image: docker.io/rajchaudhuri/paydesk:0.1.0
+          volumeMounts:
+            - name: paydesk-webvol
+              mountPath: /app/data
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              value: Host=postgres;Port=5432;Database=paydesk_db;Username=paydesk;Password=paydesk_secret_password
+            - name: Storage__DataDirectory
+              value: "/app/data"
+      # PROPER KUBERNETES FIX:
+      # The app container runs as unprivileged user 1829 without needing root!
+      # fsGroup tells kubelet to mount the volume with GID 2830 and group-write
+      # permissions. The runAsUser is given membership of this group.
+      # In this demo, these uid/gid numbers have been randomly chosen. This  
+      # is exactly what some secured Kubernetes environments like OpenShift do.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1829
+        runAsGroup: 1829
+        fsGroup: 2830
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paydesk-web
+  labels:
+    app: paydesk
+    demo: demo1
+spec:
+  type: NodePort
+  selector:
+    app: paydesk
+    demo: demo1
+    layer: paydesk-web
+  ports:
+    - name: paydesk
+      port: 8080
