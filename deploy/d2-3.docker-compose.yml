@@ -1,0 +1,49 @@
+volumes:
+  postgres_vol:
+
+  paydesk_vol:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: d2-3-paydesk-postgres
+    volumes:
+      - postgres_vol:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: paydesk
+      POSTGRES_PASSWORD: paydesk_secret_password
+      POSTGRES_DB: paydesk_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paydesk -d paydesk_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  paydesk-web:
+    image: paydesk:0.1.0-beta2
+    build:
+      context: ..
+      dockerfile: package/paydesk-0.1.0-beta2.dockerfile
+    container_name: d2-3-paydesk-web
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=paydesk_db;Username=paydesk;Password=paydesk_secret_password"
+      Storage__DataDirectory: "/app/data"
+    ports:
+      - "8080:8080"
+    volumes:
+      # Volume mounted to /app/data
+      # Since the container runs as non-root 'app' (UID 1654),
+      # that user needs to have write permissions on the volume.
+      # If not, uploads fail!
+      - type: volume
+        source: paydesk_vol
+        target: /app/data
+    # HARDENED CONTAINER: Dropping ALL Linux capabilities (recommended by CIS Benchmarks)
+    cap_drop:
+      - ALL
+    # Adding back only capabilities needed by the application (CAP_NET_RAW needed for ping)
+    cap_add:
+      - NET_RAW
