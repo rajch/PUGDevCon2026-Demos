@@ -111,6 +111,14 @@ Note that the Status page works fine, even while running as app. The image now i
 
 Now, log in as `admin@paydesk.local`, and run the consolidation process. There should be no errors now.
 
+## Cleaning Up
+
+Run the following command:
+
+```bash
+docker compose -f deploy/d1-3.docker-compose.yml down --volumes
+```
+
 ---
 
 
